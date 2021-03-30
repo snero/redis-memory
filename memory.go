@@ -3,6 +3,7 @@
 package redis
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/go-joe/joe"
@@ -53,6 +54,7 @@ func Memory(addr string, opts ...Option) joe.Module {
 
 // NewMemory creates a Redis implementation of a joe.Memory.
 func NewMemory(conf Config) (joe.Memory, error) {
+	ctx := context.Background()
 	if conf.Logger == nil {
 		conf.Logger = zap.NewNop()
 	}
@@ -77,7 +79,7 @@ func NewMemory(conf Config) (joe.Memory, error) {
 		DB:       conf.DB,
 	})
 
-	_, err := memory.Client.Ping().Result()
+	_, err := memory.Client.Ping(ctx).Result()
 	if err != nil {
 		return nil, fmt.Errorf("failed to ping redis: %w", err)
 	}
@@ -89,13 +91,15 @@ func NewMemory(conf Config) (joe.Memory, error) {
 // Set implements joe.Memory by settings the key to the given value in a Redis
 // hash set.
 func (b *memory) Set(key string, value []byte) error {
-	resp := b.Client.HSet(b.hkey, key, value)
+	ctx := context.Background()
+	resp := b.Client.HSet(ctx, b.hkey, key, value)
 	return resp.Err()
 }
 
 // Get implements joe.Memory by retrieving a key from a Redis hash set.
 func (b *memory) Get(key string) ([]byte, bool, error) {
-	res, err := b.Client.HGet(b.hkey, key).Result()
+	ctx := context.Background()
+	res, err := b.Client.HGet(ctx, b.hkey, key).Result()
 	switch {
 	case err == redis.Nil:
 		return nil, false, nil
@@ -108,13 +112,15 @@ func (b *memory) Get(key string) ([]byte, bool, error) {
 
 // Delete implements joe.Memory by deleting the given key from the Redis hash set.
 func (b *memory) Delete(key string) (bool, error) {
-	res, err := b.Client.HDel(b.hkey, key).Result()
+	ctx := context.Background()
+	res, err := b.Client.HDel(ctx, b.hkey, key).Result()
 	return res > 0, err
 }
 
 // Keys implements joe.Memory by returning all previously set keys from Redis
 func (b *memory) Keys() ([]string, error) {
-	return b.Client.HKeys(b.hkey).Result()
+	ctx := context.Background()
+	return b.Client.HKeys(ctx, b.hkey).Result()
 }
 
 // Close terminates the Redis connection
